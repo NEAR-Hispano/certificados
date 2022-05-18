@@ -201,6 +201,7 @@ impl Contract {
         img: String,
         reference: String
     ) -> bool {
+        self.admin_list.iter().find(|&x| x == &env::signer_account_id()).expect("Only administrators");
         let user_id = account_id.clone();
         let verificador = self.certificate_list.get(&user_id);
         if verificador.is_some() {
@@ -245,6 +246,72 @@ impl Contract {
     }
 
     #[payable]
+    pub fn nft_mint(
+        &mut self, 
+        certificate_id: i128, 
+    ) -> TokenId {
+        self.admin_list.iter().find(|&x| x == &env::signer_account_id()).expect("Only administrators");
+        let initial_storage_usage = env::storage_usage();
+        
+        let receiver_id: AccountId = env::signer_account_id().clone();
+        let certificado = self.certificate_list.get(&receiver_id).expect("user not found");
+
+        let index = certificado.iter().position(|item| item.id == certificate_id).expect("certificate not found");
+        
+        if certificado[index].minteable == true {
+            let id = self.certificate_list.iter().position(|(k, _v)| &k == &receiver_id).expect("certificate not found");
+            
+            let token_id = format!("{}{}{}", &id + 1, TOKEN_DELIMETER, certificado[index].id);
+
+            let title: String = format!("{} {} {}", certificado[index].certificacion, TITLE_DELIMETER, (token_id).to_string());
+            
+            let metadata = Some(TokenMetadata {
+                title: Some(title.to_string()),
+                description: Some(certificado[index].bootcamp.to_string()),
+                media: Some(certificado[index].img.to_string()),
+                media_hash: None,
+                copies: None,
+                issued_at: Some(env::block_timestamp().to_string()),
+                expires_at: None,
+                starts_at: None,
+                updated_at: None,
+                extra: None,
+                reference: Some(certificado[index].reference.to_string()),
+                reference_hash: None,
+            });
+
+            self.tokens.owner_by_id.insert(&token_id, &receiver_id);
+
+            self.tokens
+                .token_metadata_by_id
+                .as_mut()
+                .and_then(|by_id| by_id.insert(&token_id, &metadata.as_ref().unwrap()));
+
+            if let Some(tokens_per_owner) = &mut self.tokens.tokens_per_owner {
+                let mut token_ids = tokens_per_owner.get(&receiver_id).unwrap_or_else(|| {
+                    UnorderedSet::new(StorageKey::TokensPerOwner {
+                        account_hash: env::sha256(&receiver_id.as_bytes()),
+                    })
+                });
+                token_ids.insert(&token_id);
+                tokens_per_owner.insert(&receiver_id, &token_ids);
+            };
+
+            NearEvent::log_nft_mint(
+                receiver_id.to_string(),
+                vec![token_id.clone()],
+                None,
+            );
+
+            refund_deposit(env::storage_usage() - initial_storage_usage, 0);
+
+            token_id
+        } else {
+            env::panic(b"el certificado ya fue minteado");
+        }
+    }
+
+    #[payable]
     pub fn nft_series(
         &mut self,
         token_metadata: TokenMetadata,
@@ -252,6 +319,7 @@ impl Contract {
         price: Option<U128>,
         royalty: Option<HashMap<AccountId, u32>>,
     ) -> TokenSeriesJson {
+        self.admin_list.iter().find(|&x| x == &env::signer_account_id()).expect("Only administrators");
         let initial_storage_usage = env::storage_usage();
         let caller_id = env::signer_account_id();
 
@@ -339,6 +407,31 @@ impl Contract {
             royalty: royalty_res,
 		}
     }
+
+
+    #[payable]
+    pub fn nft_mint_serie(
+        &mut self, 
+        token_series_id: TokenSeriesId, 
+        receiver_id: ValidAccountId
+    ) -> TokenId {
+        let initial_storage_usage = env::storage_usage();
+
+        let token_series = self.token_series_by_id.get(&token_series_id).expect("Token series not exist");
+        assert_eq!(env::predecessor_account_id(), token_series.creator_id, "not creator");
+        let token_id: TokenId = self._nft_mint_series(token_series_id, receiver_id.to_string());
+        
+
+        NearEvent::log_nft_mint(
+            receiver_id.to_string(),
+            vec![token_id.clone()],
+            None,
+        );
+
+        refund_deposit(env::storage_usage() - initial_storage_usage, 0);
+
+        token_id
+    }
     
 
     #[payable]
@@ -371,31 +464,6 @@ impl Contract {
             vec![token_id.clone()],
             Some(json!({"price": price.to_string()}).to_string())
         );
-
-        token_id
-    }
-
-
-    #[payable]
-    pub fn nft_mint(
-        &mut self, 
-        token_series_id: TokenSeriesId, 
-        receiver_id: ValidAccountId
-    ) -> TokenId {
-        let initial_storage_usage = env::storage_usage();
-
-        let token_series = self.token_series_by_id.get(&token_series_id).expect("Token series not exist");
-        assert_eq!(env::predecessor_account_id(), token_series.creator_id, "not creator");
-        let token_id: TokenId = self._nft_mint_series(token_series_id, receiver_id.to_string());
-        
-
-        NearEvent::log_nft_mint(
-            receiver_id.to_string(),
-            vec![token_id.clone()],
-            None,
-        );
-
-        refund_deposit(env::storage_usage() - initial_storage_usage, 0);
 
         token_id
     }
@@ -483,6 +551,7 @@ impl Contract {
         return price;
     }
 
+    #[private]
     fn _nft_mint_series(
         &mut self, 
         token_series_id: TokenSeriesId, 
