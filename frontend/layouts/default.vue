@@ -115,7 +115,7 @@ export default {
       // create wallet connection
       const wallet = new WalletConnection(near)
       wallet.requestSignIn(
-        'hrpalencia.testnet'
+        'nft.nearcertificate.testnet'
       )
     },
     async isSigned () {
