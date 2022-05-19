@@ -129,18 +129,11 @@ export default {
           viewMethods: ['get_profile'],
           sender: wallet.account()
         })
-        await contract.get_profile({
-          user_id: wallet.getAccountId()
-        }).then((res) => {
-          this.profilex = true
-        }).catch((err) => {
-          console.log(err)
-          this.profilex = false
-        })
         this.sesion = true
         // returns account Id as string
         const walletAccountId = wallet.getAccountId()
         this.accountId = walletAccountId
+        localStorage.accountId = this.accountId
       }
     },
     async signOut () {
@@ -150,6 +143,7 @@ export default {
       const wallet = new WalletConnection(near)
       wallet.signOut()
       this.sesion = false
+      localStorage.accountId = ''
       this.$router.go()
     }
   }

@@ -5,7 +5,7 @@
     </aside>
     <v-row class="mt-5">
       <v-col
-        v-for="item, i in itemsCertificados"
+        v-for="item, i in dataCertificates"
         :key="i"
         class="col-3"
       >
@@ -72,6 +72,9 @@
 </template>
 
 <script>
+import * as nearAPI from 'near-api-js'
+  import { CONFIG } from '~/services/api'
+  const { connect, keyStores, WalletConnection, Contract } = nearAPI
   export default {
     name: 'DashboardDashboard',
     data () {
@@ -82,11 +85,59 @@
           { img: require('../assets/img/certificado.png') },
           { img: require('../assets/img/certificado.png') },
         ],
+        dataCertificates: [],
       }
+    },
+    mounted() {
+      console.log(localStorage.accountId)
+      this.viewCertificates()
     },
     methods: {
       verNearHispano () {
         this.$router.push('https://educacion.nearhispano.org/')
+      },
+      async viewCertificates () {
+        const CONTRACT_NAME = "nft.nearcertificate.testnet";
+        // connect to NEAR
+        const near = await connect(
+          CONFIG(new keyStores.BrowserLocalStorageKeyStore())
+        );
+        // create wallet connection
+        const wallet = new WalletConnection(near);
+        const contract = new Contract(wallet.account(), CONTRACT_NAME, {
+          viewMethods: ["get_certificate_list"],
+          sender: wallet.account(),
+        });
+        await contract.get_certificate_list({
+          // account_id: localStorage.accountId,
+          account_id: 'hrpalencia.testnet',
+        }).then((response) => {
+          //console.log(response);
+          this.dataCertificates = response
+          console.log(this.dataCertificates);
+        }).catch((err) => {
+          console.log(err)
+        });
+      },
+      async mintCertificate () {
+        const CONTRACT_NAME = "nft.nearcertificate.testnet";
+        // connect to NEAR
+        const near = await connect(
+          CONFIG(new keyStores.BrowserLocalStorageKeyStore())
+        );
+        // create wallet connection
+        const wallet = new WalletConnection(near);
+        const contract = new Contract(wallet.account(), CONTRACT_NAME, {
+          changeMethods: ["nft_mint "],
+          sender: wallet.account(),
+        });
+        await contract.nft_mint ({
+          certificate_id: 1,
+        }).then(response => {
+           console.log(response)
+        }).catch((err) => {
+          console.log(err)
+        });
       }
     }
   }
