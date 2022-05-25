@@ -4,11 +4,6 @@
       <div class="container">
         <v-row class="d-lg-flex justify-content-between align-center">
           <v-col
-            class="d-none"
-          >
-            <v-app-bar-nav-icon />
-          </v-col>
-          <v-col
             class="col-3 d-flex justify-start"
           >
             <v-toolbar-title>
@@ -24,7 +19,7 @@
             </v-toolbar-title>
           </v-col>
           <v-col
-            class="col-6 d-flex justify-center mt-7"
+            class="col-6 d-none d-md-flex justify-center mt-7"
             align-self="center"
           >
             <!-- <v-autocomplete
@@ -43,7 +38,7 @@
             />
           </v-col>
           <v-col
-            class="col-3 d-flex justify-end"
+            class="col-3 d-none d-md-flex justify-end"
           >
             <div
               v-show="!sesion"
@@ -83,6 +78,11 @@
                 </v-list>
               </v-menu>
             </div>
+          </v-col>
+          <v-col
+            class="d-flex d-md-none justify-end"
+          >
+            <v-app-bar-nav-icon />
           </v-col>
         </v-row>
       </div>
@@ -156,6 +156,7 @@ export default {
       this.$router.go()
     },
     viewCertificates: function(accountId) {
+      // alert('aqui')
       localStorage.accountSearch = accountId
       this.$router.go(0)
     }
