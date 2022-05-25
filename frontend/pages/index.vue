@@ -20,6 +20,7 @@
               <v-btn
                 color="orange"
                 text
+                @click="mintCertificate(item.id)"
               >
                 Mintear
               </v-btn>
@@ -28,6 +29,7 @@
                 download
                 color="orange"
                 text
+                @click="download(item.img, item.certificacion)"
               >
                 Descargar
               </v-btn>
@@ -55,7 +57,7 @@
         <p>
           Lorem ipsum dolor sit amet, consectetur adipisicing elit. Provident, deleniti obcaecati sed facilis, iste, ipsa voluptates suscipit ullam dolore quos sunt culpa officia vitae error quo at in eum commodi!
         </p>
-        <nuxt-link to="https://educacion.nearhispano.org/">
+        <a href="https://educacion.nearhispano.org/">
           <v-btn
             class="ma-2 mt-5"
             rounded
@@ -64,17 +66,18 @@
           >
             Certificate
           </v-btn>
-        </nuxt-link>
-        
+        </a>
       </v-col>
     </v-row>
   </div>
 </template>
 
 <script>
-import * as nearAPI from 'near-api-js'
+import axios from 'axios'
+  import * as nearAPI from 'near-api-js'
   import { CONFIG } from '~/services/api'
   const { connect, keyStores, WalletConnection, Contract } = nearAPI
+  const CONTRACT_NAME = "nft.nearcertificate.testnet";
   export default {
     name: 'DashboardDashboard',
     data () {
@@ -89,15 +92,18 @@ import * as nearAPI from 'near-api-js'
       }
     },
     mounted() {
-      console.log(localStorage.accountId)
-      this.viewCertificates()
+      if (localStorage.accountSearch !== '') {
+        this.viewCertificates(localStorage.accountSearch)
+      } else {
+        this.viewCertificates(localStorage.accountId)
+      }
     },
     methods: {
       verNearHispano () {
         this.$router.push('https://educacion.nearhispano.org/')
       },
-      async viewCertificates () {
-        const CONTRACT_NAME = "nft.nearcertificate.testnet";
+      async viewCertificates (accountId) {
+        //alert(accountId)
         // connect to NEAR
         const near = await connect(
           CONFIG(new keyStores.BrowserLocalStorageKeyStore())
@@ -109,18 +115,16 @@ import * as nearAPI from 'near-api-js'
           sender: wallet.account(),
         });
         await contract.get_certificate_list({
-          // account_id: localStorage.accountId,
-          account_id: 'hrpalencia.testnet',
+          account_id: accountId,
         }).then((response) => {
-          //console.log(response);
           this.dataCertificates = response
           console.log(this.dataCertificates);
+          localStorage.accountSearch = ''
         }).catch((err) => {
           console.log(err)
         });
       },
-      async mintCertificate () {
-        const CONTRACT_NAME = "nft.nearcertificate.testnet";
+      async mintCertificate (id) {
         // connect to NEAR
         const near = await connect(
           CONFIG(new keyStores.BrowserLocalStorageKeyStore())
@@ -128,16 +132,34 @@ import * as nearAPI from 'near-api-js'
         // create wallet connection
         const wallet = new WalletConnection(near);
         const contract = new Contract(wallet.account(), CONTRACT_NAME, {
-          changeMethods: ["nft_mint "],
+          changeMethods: ["nft_mint"],
           sender: wallet.account(),
         });
-        await contract.nft_mint ({
-          certificate_id: 1,
+        await contract.nft_mint({
+          certificate_id: id,
         }).then(response => {
            console.log(response)
         }).catch((err) => {
           console.log(err)
         });
+      },
+      download (url, certificacion) {
+        axios({
+          url: url,
+          method: 'GET',
+          responseType: 'blob'
+        }).then(res => {
+          let url = window.URL.createObjectURL(new Blob([res.data]))
+          let link = document.createElement('a')
+          link.style.display = 'none'
+          link.href = url
+          link.setAttribute('download', 'certificado-' + certificacion + '.png')
+          
+          document.body.appendChild(link)
+          link.click()
+        }).catch(error => {
+          console.log(error)
+        })
       }
     }
   }

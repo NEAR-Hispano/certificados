@@ -27,11 +27,19 @@
             class="col-6 d-flex justify-center mt-7"
             align-self="center"
           >
-            <v-autocomplete
+            <!-- <v-autocomplete
               v-model="values"
               :items="items"
               outlined
               dense
+            /> -->
+            <v-text-field
+              solo
+              v-model="account"
+              label="Id Near"
+              append-icon="mdi-magnify"
+              clearable
+              @keyup.enter="viewCertificates(account)"
             />
           </v-col>
           <v-col
@@ -103,6 +111,7 @@ export default {
       miniVariant: true,
       sesion: false,
       accountId: null,
+      account: null,
     }
   },
   mounted () {
@@ -145,6 +154,10 @@ export default {
       this.sesion = false
       localStorage.accountId = ''
       this.$router.go()
+    },
+    viewCertificates: function(accountId) {
+      localStorage.accountSearch = accountId
+      this.$router.go(0)
     }
   }
 }
