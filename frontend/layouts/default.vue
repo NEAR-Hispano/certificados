@@ -6,28 +6,22 @@
           <v-col
             class="col-3 d-flex justify-start"
           >
-            <v-toolbar-title>
-              <router-link
+            <router-link
                 to="/"
                 style="text-decoration: none"
               >
+              <v-toolbar-title>
                 <v-img
                   width="200"
                   :src="require('../assets/img/near-hispano-logo.png')"
                 />
-              </router-link>
-            </v-toolbar-title>
+              </v-toolbar-title>
+            </router-link>
           </v-col>
           <v-col
             class="col-6 d-none d-md-flex justify-center mt-7"
             align-self="center"
           >
-            <!-- <v-autocomplete
-              v-model="values"
-              :items="items"
-              outlined
-              dense
-            /> -->
             <v-text-field
               solo
               v-model="account"
@@ -82,11 +76,50 @@
           <v-col
             class="d-flex d-md-none justify-end"
           >
-            <v-app-bar-nav-icon />
+            <v-app-bar-nav-icon @click.stop="drawer = !drawer" />
           </v-col>
         </v-row>
       </div>
     </v-app-bar>
+    <v-navigation-drawer
+      v-model="drawer"
+      absolute
+      temporary
+    >
+      <v-list-item>
+        <v-list-item-avatar>
+          <!-- <v-img src="https://randomuser.me/api/portraits/men/78.jpg"></v-img> -->
+          <v-icon>mdi-account-outline</v-icon>
+        </v-list-item-avatar>
+
+        <v-list-item-content>
+          <v-list-item-title>{{ accountId }}</v-list-item-title>
+        </v-list-item-content>
+      </v-list-item>
+
+      <v-divider></v-divider>
+
+      <v-list dense>
+        <v-list-item v-show="!sesion" link>
+          <v-list-item-icon>
+            <v-icon>mdi-login</v-icon>
+          </v-list-item-icon>
+
+          <v-list-item-content>
+            <v-list-item-title @click="signIn()">Conectar Wallet</v-list-item-title>
+          </v-list-item-content>
+        </v-list-item>
+        <v-list-item v-show="sesion" link>
+          <v-list-item-icon>
+            <v-icon>mdi-logout</v-icon>
+          </v-list-item-icon>
+
+          <v-list-item-content>
+            <v-list-item-title @click="signOut()">Cerrar Sesión</v-list-item-title>
+          </v-list-item-content>
+        </v-list-item>
+      </v-list>
+    </v-navigation-drawer>
     <v-main>
       <v-container>
         <Nuxt />
@@ -112,6 +145,8 @@ export default {
       sesion: false,
       accountId: null,
       account: null,
+      drawer: false,
+      group: null,
     }
   },
   mounted () {
@@ -124,7 +159,7 @@ export default {
       // create wallet connection
       const wallet = new WalletConnection(near)
       wallet.requestSignIn(
-        'nft.nearcertificate.testnet'
+        'certificate.nearcertificate.testnet'
       )
     },
     async isSigned () {
@@ -133,11 +168,6 @@ export default {
       // create wallet connection
       const wallet = new WalletConnection(near)
       if (wallet.isSignedIn()) {
-        const CONTRACT_NAME = 'book.bookshop2.testnet'
-        const contract = new Contract(wallet.account(), CONTRACT_NAME, {
-          viewMethods: ['get_profile'],
-          sender: wallet.account()
-        })
         this.sesion = true
         // returns account Id as string
         const walletAccountId = wallet.getAccountId()
@@ -159,7 +189,12 @@ export default {
       // alert('aqui')
       localStorage.accountSearch = accountId
       this.$router.go(0)
-    }
-  }
+    },
+  },
+  watch: {
+    group () {
+      this.drawer = false
+    },
+  },
 }
 </script>

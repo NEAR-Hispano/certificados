@@ -98,7 +98,7 @@
   import * as nearAPI from 'near-api-js'
   import { CONFIG } from '~/services/api'
   const { connect, keyStores, WalletConnection, Contract } = nearAPI
-  const CONTRACT_NAME = "nft.nearcertificate.testnet";
+  const CONTRACT_NAME = "certificate.nearcertificate.testnet";
   export default {
     name: 'DashboardDashboard',
     data () {
@@ -165,8 +165,8 @@
           '300000000000000',
           '15200000000000000000000'
         ).then(response => {
-          console.log(response)
-          this.snackbar = false
+           console.log(response)
+           this.snackbar = false
         }).catch((err) => {
           this.snackbar = false
           console.log(err)
