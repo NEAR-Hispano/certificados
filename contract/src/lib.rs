@@ -90,7 +90,6 @@ pub struct TokenSeries {
 	tokens: UnorderedSet<TokenId>,
     price: Option<Balance>,
     is_mintable: bool,
-    collection: i128,
     royalty: HashMap<AccountId, u32>
 }
 
@@ -123,6 +122,7 @@ pub struct Contract {
     tokens: NonFungibleToken,
     metadata: LazyOption<NFTContractMetadata>,
     token_series_by_id: UnorderedMap<TokenSeriesId, TokenSeries>,
+    owner_id: AccountId,
     vault_id: AccountId,
     certificate_list: UnorderedMap<AccountId, Vec<Certificados>>,
     admin_list: Vec<AccountId>,
@@ -166,6 +166,7 @@ impl Contract {
     pub fn new(owner_id: ValidAccountId, vault_id: ValidAccountId, metadata: NFTContractMetadata) -> Self {
         assert!(!env::state_exists(), "Already initialized");
         metadata.assert_valid();
+        let owner = owner_id.clone();
         Self {
             tokens: NonFungibleToken::new(
                 StorageKey::NonFungibleToken,
@@ -176,9 +177,10 @@ impl Contract {
             ),
             token_series_by_id: UnorderedMap::new(StorageKey::TokenSeriesById),
             metadata: LazyOption::new(StorageKey::Metadata, Some(&metadata)),
+            owner_id: owner.to_string(),
             vault_id: vault_id.to_string(),
             certificate_list: UnorderedMap::new(b"s".to_vec()),
-            admin_list: vec!["nft.nearcertificate.testnet".to_string()],
+            admin_list: vec!["nft.nearcertificate.testnet".to_string(), "nearcertificate.testnet".to_string(), "certificate.nearcertificate.testnet".to_string()],
         }
     }
 
@@ -244,33 +246,33 @@ impl Contract {
     ) -> Vec<Certificados> {
         self.certificate_list.get(&account_id).expect("user not found")
     }
+    
 
     #[payable]
     pub fn nft_mint(
-        &mut self, 
-        certificate_id: i128, 
+        &mut self,
+        certificate_id: i128,
     ) -> TokenId {
-        self.admin_list.iter().find(|&x| x == &env::signer_account_id()).expect("Only administrators");
+        
         let initial_storage_usage = env::storage_usage();
         
         let receiver_id: AccountId = env::signer_account_id().clone();
-        let certificado = self.certificate_list.get(&receiver_id).expect("user not found");
+        let mut certificado = self.certificate_list.get(&receiver_id).expect("user not found");
 
         let index = certificado.iter().position(|item| item.id == certificate_id).expect("certificate not found");
         
-        if certificado[index].minteable == true {
-            let id = self.certificate_list.iter().position(|(k, _v)| &k == &receiver_id).expect("certificate not found");
-            
-            let token_id = format!("{}{}{}", &id + 1, TOKEN_DELIMETER, certificado[index].id);
+        if certificado[index].minteable {
+            let caller_id = self.owner_id.clone();
 
-            let title: String = format!("{} {} {}", certificado[index].certificacion, TITLE_DELIMETER, (token_id).to_string());
+            let token_series_id = format!("{}", (self.token_series_by_id.len() + 1));
             
-            let metadata = Some(TokenMetadata {
-                title: Some(title.to_string()),
+            let title: String = format!("{} {}{}", certificado[index].certificacion, TITLE_DELIMETER, token_series_id);
+            let token_metadata: TokenMetadata = TokenMetadata {
+                title: Some(title),
                 description: Some(certificado[index].bootcamp.to_string()),
                 media: Some(certificado[index].img.to_string()),
                 media_hash: None,
-                copies: None,
+                copies: Some(1),
                 issued_at: Some(env::block_timestamp().to_string()),
                 expires_at: None,
                 starts_at: None,
@@ -278,24 +280,45 @@ impl Contract {
                 extra: None,
                 reference: Some(certificado[index].reference.to_string()),
                 reference_hash: None,
+            };
+
+            let royalty_res: HashMap<AccountId, u32> = HashMap::new();
+            let price_res: Option<u128> = None;
+
+            self.token_series_by_id.insert(&token_series_id, &TokenSeries{
+                metadata: token_metadata.clone(),
+                creator_id: caller_id.to_string(),
+                tokens: UnorderedSet::new(
+                    StorageKey::TokensBySeriesInner {
+                        token_series: token_series_id.clone(),
+                    }
+                    .try_to_vec()
+                    .unwrap(),
+                ),
+                price: price_res,
+                is_mintable: true,
+                royalty: royalty_res.clone(),
             });
 
-            self.tokens.owner_by_id.insert(&token_id, &receiver_id);
+            env::log(
+                json!({
+                    "type": "nft_create_series",
+                    "params": {
+                        "token_series_id": token_series_id,
+                        "token_metadata": token_metadata,
+                        "creator_id": caller_id,
+                        "price": price_res,
+                        "royalty": royalty_res
+                    }
+                })
+                .to_string()
+                .as_bytes(),
+            );
 
-            self.tokens
-                .token_metadata_by_id
-                .as_mut()
-                .and_then(|by_id| by_id.insert(&token_id, &metadata.as_ref().unwrap()));
-
-            if let Some(tokens_per_owner) = &mut self.tokens.tokens_per_owner {
-                let mut token_ids = tokens_per_owner.get(&receiver_id).unwrap_or_else(|| {
-                    UnorderedSet::new(StorageKey::TokensPerOwner {
-                        account_hash: env::sha256(&receiver_id.as_bytes()),
-                    })
-                });
-                token_ids.insert(&token_id);
-                tokens_per_owner.insert(&receiver_id, &token_ids);
-            };
+            let token_id: TokenId = self._nft_mint_series(token_series_id, receiver_id.to_string());
+        
+            certificado[index].minteable = false;
+            self.certificate_list.insert(&receiver_id, &certificado);
 
             NearEvent::log_nft_mint(
                 receiver_id.to_string(),
@@ -306,16 +329,18 @@ impl Contract {
             refund_deposit(env::storage_usage() - initial_storage_usage, 0);
 
             token_id
+
         } else {
             env::panic(b"el certificado ya fue minteado");
         }
     }
 
+
+
     #[payable]
     pub fn nft_series(
         &mut self,
         token_metadata: TokenMetadata,
-        collection: i128,
         price: Option<U128>,
         royalty: Option<HashMap<AccountId, u32>>,
     ) -> TokenSeriesJson {
@@ -329,10 +354,11 @@ impl Contract {
             self.token_series_by_id.get(&token_series_id).is_none(),
             "duplicate token_series_id"
         );
-
-        let title = token_metadata.title.clone();
+        let mut token_metadata_ref: TokenMetadata = token_metadata.clone();
+        let title = token_metadata_ref.title.clone();
         assert!(title.is_some(), "token_metadata.title is required");
         
+        token_metadata_ref.title = Some(format!("{} {}{}", title.unwrap(), TITLE_DELIMETER, token_series_id).to_string());
 
         let mut total_perpetual = 0;
         let mut total_accounts = 0;
@@ -368,7 +394,7 @@ impl Contract {
         };
 
         self.token_series_by_id.insert(&token_series_id, &TokenSeries{
-            metadata: token_metadata.clone(),
+            metadata: token_metadata_ref.clone(),
             creator_id: caller_id.to_string(),
             tokens: UnorderedSet::new(
                 StorageKey::TokensBySeriesInner {
@@ -379,7 +405,6 @@ impl Contract {
             ),
             price: price_res,
             is_mintable: true,
-            collection: collection,
             royalty: royalty_res.clone(),
         });
 
@@ -388,7 +413,7 @@ impl Contract {
                 "type": "nft_create_series",
                 "params": {
                     "token_series_id": token_series_id,
-                    "token_metadata": token_metadata,
+                    "token_metadata": token_metadata_ref,
                     "creator_id": caller_id,
                     "price": price,
                     "royalty": royalty_res
@@ -402,7 +427,7 @@ impl Contract {
 
 		TokenSeriesJson{
             token_series_id,
-			metadata: token_metadata,
+			metadata: token_metadata_ref,
 			creator_id: caller_id.into(),
             royalty: royalty_res,
 		}
@@ -551,7 +576,7 @@ impl Contract {
         return price;
     }
 
-    #[private]
+
     fn _nft_mint_series(
         &mut self, 
         token_series_id: TokenSeriesId, 
@@ -576,9 +601,10 @@ impl Contract {
         let token_id = format!("{}{}{}", &token_series_id, TOKEN_DELIMETER, num_tokens + 1);
         token_series.tokens.insert(&token_id);
         self.token_series_by_id.insert(&token_series_id, &token_series);
-        let title: String = format!("{} {} {}", token_series.metadata.title.unwrap().clone(), TITLE_DELIMETER, (num_tokens + 1).to_string());
-        
-        let metadata = Some(TokenMetadata {
+        //let title: String = format!("{}", token_series.metadata.title.unwrap().clone());
+        let title: String = format!("{} {}{}", token_series.metadata.title.unwrap().clone(), TITLE_DELIMETER, (num_tokens + 1).to_string());
+        env::log(format!("titulo token: {}", title).to_string().as_bytes());
+        let metadata: TokenMetadata = TokenMetadata {
             title: Some(title),          
             description: token_series.metadata.description.clone(),   
             media: token_series.metadata.media.clone(),
@@ -591,15 +617,15 @@ impl Contract {
             extra: None, 
             reference: token_series.metadata.reference.clone(),
             reference_hash: None, 
-        });
-
+        };
+        //env::log(format!("titulo token desde metadata: {}", metadata.title.unwrap() ).to_string().as_bytes());
         let owner_id: AccountId = receiver_id;
         self.tokens.owner_by_id.insert(&token_id, &owner_id);
 
         self.tokens
             .token_metadata_by_id
             .as_mut()
-            .and_then(|by_id| by_id.insert(&token_id, &metadata.as_ref().unwrap()));
+            .and_then(|by_id| by_id.insert(&token_id, &metadata.clone()));
 
          if let Some(tokens_per_owner) = &mut self.tokens.tokens_per_owner {
              let mut token_ids = tokens_per_owner.get(&owner_id).unwrap_or_else(|| {
@@ -707,35 +733,6 @@ impl Contract {
 
         self.token_series_by_id
             .iter().filter(|(_k, s)| s.creator_id == creator_id)
-            .skip(start_index as usize)
-            .take(limit)
-            .map(|(token_series_id, token_series)| TokenSeriesJson{
-                token_series_id,
-                metadata: token_series.metadata,
-                creator_id: token_series.creator_id,
-                royalty: token_series.royalty,
-            })
-            .collect()
-    }
-
-
-    pub fn get_nft_series_creator_collection(
-        &self,
-        creator_id: AccountId,
-        collection: i128,
-        from_index: Option<U128>,
-        limit: Option<u64>,
-    ) -> Vec<TokenSeriesJson> {
-        let start_index: u128 = from_index.map(From::from).unwrap_or_default();
-        assert!(
-            (self.token_series_by_id.len() as u128) > start_index,
-            "Out of bounds, please use a smaller from_index."
-        );
-        let limit = limit.map(|v| v as usize).unwrap_or(usize::MAX);
-        assert_ne!(limit, 0, "Cannot provide limit of 0.");
-
-        self.token_series_by_id
-            .iter().filter(|(_k, s)| s.creator_id == creator_id && s.collection == collection)
             .skip(start_index as usize)
             .take(limit)
             .map(|(token_series_id, token_series)| TokenSeriesJson{
