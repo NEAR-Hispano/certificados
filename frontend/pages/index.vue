@@ -111,9 +111,11 @@
     },
     mounted() {
       if (localStorage.accountSearch !== '') {
+        console.log(localStorage.accountSearch)
         this.busqueda = true
         this.viewCertificates(localStorage.accountSearch)
       } else {
+        console.log(localStorage.accountId)
         this.busqueda = false
         this.viewCertificates(localStorage.accountId)
       }
@@ -137,6 +139,7 @@
         });
         await contract.get_certificate_list({
           account_id: accountId,
+          // account_id: 'lindaley16.testnet',
         }).then((response) => {
           this.dataCertificates = response
           this.snackbar = false
@@ -163,7 +166,7 @@
           certificate_id: id,
         },
           '300000000000000',
-          '15200000000000000000000'
+          '15970000000000000000000'
         ).then(response => {
            console.log(response)
            this.snackbar = false
@@ -192,4 +195,3 @@
     }
   }
 </script>
-    
