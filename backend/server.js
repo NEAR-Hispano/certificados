@@ -290,15 +290,17 @@ async function EnvioCorreo(to, certificacion, nombre, certificado) {
           certificado: certificado,
           p2: 'Hello you are receiving this mail because your order number',
           p3: 'has been marked as completed, please release.',
+          p4: prub,
         }
       }
 
     transporter.sendMail(mailOptions, function(error, info){
-        if (error) {
-            console.log(error);
-        } else {
-            console.log('Email sent: ' + info.response);
-        }
+      return true;  
+      /*if (error) {
+          console.log(error);
+      } else {
+          console.log('Email sent: ' + info.response);
+      }*/
     });
   } 
 }
@@ -308,7 +310,7 @@ async function EnvioCorreo(to, certificacion, nombre, certificado) {
 // funcion para consultar airtable obtener datos, validarlos y luego insertarlos en el contrato
 function servicio() {
   console.log("////////////////////////////////////////////////////////");
-  console.log("ejecuto funcion")
+  console.log("ejecuto ciclo")
   console.log("////////////////////////////////////////////////////////");
   // se consulta la lista de certificados en el AirTable//
   table.select({
@@ -319,8 +321,7 @@ function servicio() {
     let cont = 0;
     let longitudLista = records.length;
     records.forEach(async function(record) {
-      console.log(record.fields);
-      console.log("correo: ", record.fields['Correo']);
+      //console.log(record.fields);
       // se consulta la lista de certificados en el smart contract por cada user id //
       this.responseview = await contract.get_certificate_list( {
         account_id: record.fields['NEAR mainnet'],
@@ -331,13 +332,6 @@ function servicio() {
           crearImagen(record.fields['Nombre'], record.fields['bootcamp']).then(async (image) => {
             // se cargan todos los datos en el smart contract para que luego pueda ser minteado por el usuario dueño del certificado //
             if(image != false) {
-              console.log("//////---------------///////////");
-              console.log(record.fields['NEAR mainnet'].trim());
-              console.log(record.fields['Nombre'].trim());
-              console.log(record.fields['certificacion (from bootcamp)'].trim());
-              console.log(record.fields['bootcamp'].trim());
-              console.log("https://"+image.trim()+".ipfs.dweb.link/"+record.fields['Nombre'].trim()+" - "+record.fields['bootcamp'].trim()+".png");
-              console.log("//////---------------///////////");
               this.responsecall = await contract.set_certificate_list({ 
                 callbackUrl: '',
                 meta: '',
@@ -357,19 +351,19 @@ function servicio() {
                     "https://"+image.trim()+".ipfs.dweb.link/"+record.fields['Nombre'].trim()+" - "+record.fields['bootcamp'].trim()+".png")
                   }
                   console.log("------------------------------------------");
-                  console.log("se cargo el certificado en el contrato");
-                  console.log("aqui esta la imagen");
-                  console.log(image);
+                  console.log("---------culmino el subproceso -----------");
+                  console.log("se cargo el certificado '" + record.fields['certificacion (from bootcamp)'].trim() + "' para el usuario " + record.fields['NEAR mainnet'].trim());
+                  console.log("aqui esta la imagen: " + "https://"+image.trim()+".ipfs.dweb.link/"+record.fields['Nombre'].trim()+" - "+record.fields['bootcamp'].trim()+".png");
                   console.log("------------------------------------------");
                 }
               })
-              .catch((err) => {
+              /*.catch((err) => {
                 console.log("error al caragar datos en el contrato" + err);
-              });
+              })*/;
             }
-          }).catch((err) => {
+          })/*.catch((err) => {
             console.log("error al crear imagen " + err);
-          });
+          })*/;
         }
       })
       .catch((err) => {
@@ -377,13 +371,6 @@ function servicio() {
         crearImagen(record.fields['Nombre'], record.fields['bootcamp']).then(async (image) => {
           // se cargan todos los datos en el smart contract para que luego pueda ser minteado por el usuario dueño del certificado //
           if(image != false) {
-            console.log("//////---------------///////////");
-            console.log(record.fields['NEAR mainnet'].trim());
-            console.log(record.fields['Nombre'].trim());
-            console.log(record.fields['certificacion (from bootcamp)'].trim());
-            console.log(record.fields['bootcamp'].trim());
-            console.log("https://"+image.trim()+".ipfs.dweb.link/"+record.fields['Nombre'].trim()+" - "+record.fields['bootcamp'].trim()+".png");
-            console.log("//////---------------///////////");
             this.responsecall = await contract.set_certificate_list({ 
               callbackUrl: '',
               meta: '',
@@ -403,31 +390,30 @@ function servicio() {
                   "https://"+image.trim()+".ipfs.dweb.link/"+record.fields['Nombre'].trim()+" - "+record.fields['bootcamp'].trim()+".png")
                 }
                 console.log("------------------------------------------");
-                console.log("se creo el nuevo usuario");
-                console.log("aqui esta la imagen");
-                console.log(image);
-                console.log("se cargo el certificado en el contrato");
+                console.log("---------culmino el subproceso -----------");
+                console.log("se cargo el certificado '" + record.fields['certificacion (from bootcamp)'].trim() + "' para el usuario " + record.fields['NEAR mainnet'].trim());
+                console.log("aqui esta la imagen: " + "https://"+image.trim()+".ipfs.dweb.link/"+record.fields['Nombre'].trim()+" - "+record.fields['bootcamp'].trim()+".png");
                 console.log("------------------------------------------");
               }
             })
-            .catch((err) => {
+            /*.catch((err) => {
               console.log("error al caragar datos en el contrato" + err);
-            });
+            })*/;
           }
-        }).catch((err) => {
+        })/*.catch((err) => {
           console.log("error al crear imagen " + err);
-        });
+        })*/;
       });
       cont += 1;
       if(cont == longitudLista) {
         console.log("////////////////////////////////////////////////////////");
-        console.log("termino la funcion");
+        console.log("termino el ciclo");
         console.log("////////////////////////////////////////////////////////");
       }
     })
   }).catch((err) => {
     console.log("////////////////////////////////////////////////////////");
-    console.log("termino la funcion con error: " + err);
+    console.log("termino ciclo con error: " + err);
     console.log("////////////////////////////////////////////////////////");
   });
 }
