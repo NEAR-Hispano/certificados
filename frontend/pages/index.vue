@@ -130,7 +130,6 @@
 </template>
 
 <script>
-  import axios from 'axios'
   import * as nearAPI from 'near-api-js'
   import { CONFIG } from '~/services/api'
   const { connect, keyStores, WalletConnection, Contract } = nearAPI
@@ -217,9 +216,7 @@
         });
       },
       download (url, certificacion) {
-        axios({
-          url: url,
-          method: 'GET',
+        this.$axios.get(url,{
           responseType: 'blob'
         }).then(res => {
           let url = window.URL.createObjectURL(new Blob([res.data]))
