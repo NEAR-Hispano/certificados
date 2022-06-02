@@ -1,7 +1,17 @@
 <template>
   <div class="container">
-    <aside class="text-lg-h2 text-h4 font-weight-bold text-center mt-8">
-      Mis Certificados
+    <aside class="text-lg-h3 text-h4 font-weight-bold text-center mt-8">
+      {{ title }}
+    </aside>
+    <aside v-if="busqueda" class="text-right">
+      <v-btn
+        class="ma-2"
+        rounded
+        outlined
+        @click="reload()"
+      >
+        Regresar
+      </v-btn>
     </aside>
     <v-row class="mt-5">
       <v-col
@@ -10,7 +20,7 @@
         class="col-lg-3 col-md-4 col-sm-6 col-12"
       >
         <viewer>
-          <v-card class="mx-auto">
+          <v-card class="mx-auto" @click="viewImg(item.img)">
             <v-img
               class="white--text align-end"
               height="200px"
@@ -67,6 +77,32 @@
     >
       Open Snackbar
     </v-btn> -->
+    <v-dialog
+      v-model="dialog"
+      transition="dialog-top-transition"
+      max-width="600"
+    >
+      <!-- <template v-slot:activator="{ on, attrs }">
+        <v-btn
+          color="primary"
+          v-bind="attrs"
+          v-on="on"
+        >From the top</v-btn>
+      </template> -->
+      <template v-slot:default="dialog">
+        <v-card>
+          <v-card-text>
+            <v-img :src="imgSelect" />
+          </v-card-text>
+          <v-card-actions class="justify-end">
+            <v-btn
+              text
+              @click="dialog.value = false"
+            >Close</v-btn>
+          </v-card-actions>
+        </v-card>
+      </template>
+    </v-dialog>
     <v-snackbar
       v-model="snackbar"
       :timeout="-1"
@@ -107,16 +143,18 @@
         busqueda: false,
         snackbar: false,
         textSnack: 'Cargando',
+        title: '',
+        imgSelect: '',
+        dialog: false,
       }
     },
     mounted() {
-      if (localStorage.accountSearch !== '') {
-        console.log(localStorage.accountSearch)
+      if (localStorage.accountSearch !== localStorage.accountId && localStorage.accountSearch !== '') {
         this.busqueda = true
         this.viewCertificates(localStorage.accountSearch)
       } else {
-        console.log(localStorage.accountId)
         this.busqueda = false
+        this.title = 'Mis Certificados'
         this.viewCertificates(localStorage.accountId)
       }
     },
@@ -143,8 +181,11 @@
         }).then((response) => {
           this.dataCertificates = response
           this.snackbar = false
-          console.log(this.dataCertificates);
-          localStorage.accountSearch = ''
+          // console.log(this.dataCertificates);
+          if (this.busqueda) {
+            this.title = 'Certificados de ' + this.dataCertificates[0].nombre
+            localStorage.accountSearch = ''
+          } 
         }).catch((err) => {
           console.log(err)
           this.snackbar = false
@@ -191,7 +232,14 @@
         }).catch(error => {
           console.log(error)
         })
-      }
+      },
+      reload () {
+        this.$router.go(0)
+      },
+      viewImg (img) {
+        this.imgSelect = img
+        this.dialog = true
+      },
     }
   }
 </script>
