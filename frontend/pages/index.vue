@@ -143,7 +143,7 @@
         busqueda: false,
         snackbar: false,
         textSnack: 'Cargando',
-        title: '',
+        title: 'No tiene certificados',
         imgSelect: '',
         dialog: false,
       }
