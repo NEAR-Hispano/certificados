@@ -130,6 +130,7 @@
 </template>
 
 <script>
+  import axios from 'axios'
   import * as nearAPI from 'near-api-js'
   import { CONFIG } from '~/services/api'
   const { connect, keyStores, WalletConnection, Contract } = nearAPI
@@ -216,7 +217,9 @@
         });
       },
       download (url, certificacion) {
-        this.$axios.get(url,{
+        axios({
+          url: url,
+          method: 'GET',
           responseType: 'blob'
         }).then(res => {
           let url = window.URL.createObjectURL(new Blob([res.data]))
@@ -231,6 +234,7 @@
         })
       },
       reload () {
+        localStorage.accountSearch = ''
         this.$router.go(0)
       },
       viewImg (img) {

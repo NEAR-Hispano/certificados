@@ -183,13 +183,17 @@ export default {
       wallet.signOut()
       this.sesion = false
       localStorage.accountId = ''
-      this.$router.go()
-    },
-    viewCertificates: function(accountId) {
-      // alert('aqui')
-      localStorage.accountSearch = accountId
       this.$router.go(0)
     },
+    // viewCertificates: function(accountId) {
+    //   // alert('aqui')
+    //   localStorage.accountSearch = accountId
+    //   this.$router.go(0)
+    // },
+    viewCertificates(accountId) {
+      localStorage.accountSearch = accountId
+      this.$router.go(0)
+    }
   },
   watch: {
     group () {
