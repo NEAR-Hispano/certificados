@@ -20,11 +20,12 @@
         class="col-lg-3 col-md-4 col-sm-6 col-12"
       >
         <viewer>
-          <v-card class="mx-auto" @click="viewImg(item.img)">
+          <v-card class="mx-auto">
             <v-img
               class="white--text align-end"
               height="200px"
               :src="item.img"
+              @click="viewImg(item.img)"
             />
             <v-card-actions>
               <v-btn
